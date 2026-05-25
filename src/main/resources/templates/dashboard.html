@@ -20,12 +20,22 @@
 
 <div class="container py-5">
 
-    <!-- Saludo y mes -->
-    <div class="mb-4">
-        <h2 class="fw-bold mb-1">
-            Hola, <span sec:authentication="principal.nombre"></span> 👋
-        </h2>
-        <p class="text-muted mb-0">Resumen de <span th:text="${nombreMes}"></span></p>
+    <!-- Saludo y navegación de mes -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">
+                Hola, <span sec:authentication="principal.nombre"></span> 👋
+            </h2>
+            <p class="text-muted mb-0">Resumen de <span th:text="${nombreMes} + ' ' + ${anioActual}"></span></p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a th:href="@{/dashboard(mes=${mesAnterior}, anio=${anioAnterior})}"
+               class="btn btn-outline-secondary btn-sm">&#8592;</a>
+            <span class="small fw-medium px-1" th:text="${nombreMes}"></span>
+            <a th:href="@{/dashboard(mes=${mesSiguiente}, anio=${anioSiguiente})}"
+               class="btn btn-outline-secondary btn-sm">&#8594;</a>
+            <a th:href="@{/dashboard}" class="btn btn-outline-dark btn-sm ms-1">Hoy</a>
+        </div>
     </div>
 
     <!-- Tarjetas de estadísticas -->
@@ -96,7 +106,7 @@
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h6 class="fw-semibold mb-0">Últimos gastos</h6>
+                        <h6 class="fw-semibold mb-0">Gastos de <span th:text="${nombreMes}"></span></h6>
                         <a th:href="@{/gastos}" class="text-muted small text-decoration-none">Ver todos →</a>
                     </div>
 
@@ -122,6 +132,21 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- Gráfico de barras anual: gastos vs ingresos por mes -->
+    <div class="row g-3 mt-1">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3">
+                        Gastos e ingresos del año —
+                        <span th:text="${anioActual}" class="text-muted fw-normal"></span>
+                    </h6>
+                    <canvas id="graficaAnual" style="max-height: 280px;"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Accesos rápidos -->
@@ -177,6 +202,67 @@
             }
         });
     }
+
+    // --- Gráfico de barras anual (gastos vs ingresos por mes) ---
+    const barLabels   = /*[[${barLabels}]]*/ [];
+    const barGastos   = /*[[${barGastos}]]*/ [];
+    const barIngresos = /*[[${barIngresos}]]*/ [];
+
+    const ctxAnual = document.getElementById('graficaAnual').getContext('2d');
+    new Chart(ctxAnual, {
+        type: 'bar',
+        data: {
+            labels: barLabels,
+            datasets: [
+                {
+                    label: 'Gastos',
+                    data: barGastos,
+                    backgroundColor: 'rgba(220, 53, 69, 0.75)',
+                    borderColor: '#dc3545',
+                    borderWidth: 1,
+                    borderRadius: 4
+                },
+                {
+                    label: 'Ingresos',
+                    data: barIngresos,
+                    backgroundColor: 'rgba(25, 135, 84, 0.75)',
+                    borderColor: '#198754',
+                    borderWidth: 1,
+                    borderRadius: 4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { font: { size: 12 }, padding: 16 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return ' ' + context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' €';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) { return value + ' €'; },
+                        font: { size: 11 }
+                    },
+                    grid: { color: 'rgba(0,0,0,0.05)' }
+                },
+                x: {
+                    ticks: { font: { size: 11 } },
+                    grid: { display: false }
+                }
+            }
+        }
+    });
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

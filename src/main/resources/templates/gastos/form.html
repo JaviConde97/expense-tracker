@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${gastoId} ? 'Editar gasto' : 'Nuevo gasto'">Gasto — Expense Tracker</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
     <style>
         body { background-color: #f8f9fa; }
         .form-card { border: none; border-radius: 16px; }
@@ -18,7 +19,6 @@
     <div class="row justify-content-center">
         <div class="col-12 col-md-7 col-lg-6">
 
-            <!-- Título dinámico según si es nuevo o edición -->
             <h2 class="fw-bold mb-4"
                 th:text="${gastoId} ? 'Editar gasto' : 'Nuevo gasto'"></h2>
 
@@ -27,7 +27,6 @@
 
                     <!--
                       La action del formulario cambia según si estamos creando o editando.
-                      th:action evalúa la expresión condicionalmente.
                     -->
                     <form th:action="${gastoId} ? @{/gastos/{id}/editar(id=${gastoId})} : @{/gastos/nuevo}"
                           th:object="${gastoDto}"
@@ -37,7 +36,7 @@
                         <div class="mb-3">
                             <label for="titulo" class="form-label small fw-medium">Título</label>
                             <input type="text" class="form-control" id="titulo"
-                                   th:field="*{titulo}" placeholder="Ej: Supermercado Mercadona">
+                                   th:field="*{titulo}" placeholder="Ej: Café en la oficina">
                             <div class="text-danger small mt-1" th:errors="*{titulo}"></div>
                         </div>
 
@@ -58,24 +57,22 @@
                             <div class="text-danger small mt-1" th:errors="*{fecha}"></div>
                         </div>
 
-                        <!-- Categoría -->
+                        <!--
+                          Subcategoría agrupada por categoría con <optgroup>.
+                          El usuario elige directamente en qué gastó (ej: "Bares y restaurantes")
+                          sin tener que saber previamente a qué categoría pertenece.
+                          La categoría padre se deriva automáticamente en el servicio.
+                        -->
                         <div class="mb-3">
-                            <label for="categoria" class="form-label small fw-medium">Categoría</label>
-                            <select class="form-select" id="categoria" th:field="*{categoria}">
-                                <option value="">-- Selecciona una categoría --</option>
-                                <option th:each="cat : ${categorias}"
-                                        th:value="${cat.name()}"
-                                        th:text="${cat.nombre}">
-                                </option>
-                            </select>
-                            <div class="text-danger small mt-1" th:errors="*{categoria}"></div>
-                        </div>
-
-                        <!-- Subcategoría (se filtra por JS según la categoría elegida) -->
-                        <div class="mb-3">
-                            <label for="subcategoria" class="form-label small fw-medium">Subcategoría</label>
+                            <label for="subcategoria" class="form-label small fw-medium">¿En qué gastaste?</label>
                             <select class="form-select" id="subcategoria" th:field="*{subcategoria}">
-                                <option value="">-- Selecciona primero una categoría --</option>
+                                <option value="">-- Selecciona el tipo de gasto --</option>
+                                <optgroup th:each="cat : ${categorias}" th:label="${cat.nombre}">
+                                    <option th:each="sub : ${subcategoriasPorCategoria[cat.name()]}"
+                                            th:value="${sub['value']}"
+                                            th:text="${sub['label']}">
+                                    </option>
+                                </optgroup>
                             </select>
                             <div class="text-danger small mt-1" th:errors="*{subcategoria}"></div>
                         </div>
@@ -106,57 +103,15 @@
     </div>
 </div>
 
-<!--
-  Mapa de subcategorías inyectado desde el controlador via Thymeleaf inline JavaScript.
-  /*[[...]]*/  es la sintaxis de Thymeleaf para incrustar valores en scripts.
-  Spring serializa el Map<String, List<Map<String,String>>> automáticamente a JSON.
--->
-<script th:inline="javascript">
-    const subcategoriasPorCategoria = /*[[${subcategoriasPorCategoria}]]*/ {};
-
-    // Valor seleccionado actualmente (para cuando se edita un gasto existente)
-    const subcategoriaSeleccionada = /*[[${gastoDto.subcategoria}]]*/ null;
-
-    const selectCategoria    = document.getElementById('categoria');
-    const selectSubcategoria = document.getElementById('subcategoria');
-
-    /**
-     * Actualiza las opciones del select de subcategoría
-     * según la categoría seleccionada en ese momento.
-     */
-    function actualizarSubcategorias(categoriaSeleccionada, subcategoriaPrevia) {
-        // Limpiamos las opciones actuales
-        selectSubcategoria.innerHTML = '<option value="">-- Selecciona una subcategoría --</option>';
-
-        if (!categoriaSeleccionada) return;
-
-        const subcategorias = subcategoriasPorCategoria[categoriaSeleccionada] || [];
-
-        subcategorias.forEach(sub => {
-            const option = document.createElement('option');
-            option.value = sub.value;
-            option.textContent = sub.label;
-            // Si estamos editando, marcamos la subcategoría que ya tenía el gasto
-            if (sub.value === subcategoriaPrevia) {
-                option.selected = true;
-            }
-            selectSubcategoria.appendChild(option);
-        });
-    }
-
-    // Cuando el usuario cambia la categoría, actualizamos subcategorías sin preselección
-    selectCategoria.addEventListener('change', function () {
-        actualizarSubcategorias(this.value, null);
-    });
-
-    // Al cargar la página: si ya hay categoría seleccionada (modo edición),
-    // cargamos sus subcategorías y marcamos la que corresponde
-    const categoriaInicial = selectCategoria.value;
-    if (categoriaInicial) {
-        actualizarSubcategorias(categoriaInicial, subcategoriaSeleccionada);
-    }
-</script>
-
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+<script>
+    // Convierte el select en un campo buscable con Tom Select
+    new TomSelect('#subcategoria', {
+        placeholder: '-- Escribe para buscar --',
+        allowEmptyOption: false,
+        maxOptions: null
+    });
+</script>
 </body>
 </html>

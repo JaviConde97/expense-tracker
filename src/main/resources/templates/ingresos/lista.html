@@ -65,6 +65,14 @@
                             </td>
                         </tr>
                     </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="3" class="ps-4 fw-semibold text-end text-muted small">Total</td>
+                            <td class="text-end fw-bold text-success"
+                                th:text="${#numbers.formatDecimal(#aggregates.sum(ingresos.![importe]), 1, 2)} + ' €'"></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </div>
