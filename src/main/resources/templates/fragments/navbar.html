@@ -13,7 +13,8 @@
         <sec:authorize access="isAuthenticated()">
             <div class="d-flex align-items-center gap-3 ms-auto">
                 <a class="text-light text-decoration-none small" th:href="@{/dashboard}">Dashboard</a>
-                <a class="text-light text-decoration-none small" th:href="@{/gastos}">Mis gastos</a>
+                <a class="text-light text-decoration-none small" th:href="@{/gastos}">Gastos</a>
+                <a class="text-light text-decoration-none small" th:href="@{/ingresos}">Ingresos</a>
                 <span class="text-secondary">|</span>
                 <span class="text-light small">👤 <span sec:authentication="principal.nombre"></span></span>
                 <form th:action="@{/auth/logout}" method="post" class="mb-0">

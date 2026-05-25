@@ -8,12 +8,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f8f9fa; }
-        .stat-card {
-            border: none;
-            border-radius: 12px;
-            transition: transform 0.15s;
-        }
+        .stat-card { border: none; border-radius: 12px; transition: transform 0.15s; }
         .stat-card:hover { transform: translateY(-2px); }
+        .balance-positivo { color: #198754; }
+        .balance-negativo { color: #dc3545; }
     </style>
 </head>
 <body>
@@ -22,54 +20,164 @@
 
 <div class="container py-5">
 
-    <!-- Saludo -->
+    <!-- Saludo y mes -->
     <div class="mb-4">
         <h2 class="fw-bold mb-1">
             Hola, <span sec:authentication="principal.nombre"></span> 👋
         </h2>
-        <p class="text-muted mb-0">Aquí tienes el resumen de tus gastos.</p>
+        <p class="text-muted mb-0">Resumen de <span th:text="${nombreMes}"></span></p>
     </div>
 
-    <!-- Tarjetas de estadísticas (placeholder hasta la Fase 4) -->
+    <!-- Tarjetas de estadísticas -->
     <div class="row g-3 mb-4">
-        <div class="col-12 col-md-4">
+
+        <div class="col-6 col-md-3">
             <div class="card stat-card shadow-sm h-100">
                 <div class="card-body">
-                    <p class="text-muted small mb-1">Total este mes</p>
-                    <h3 class="fw-bold text-dark mb-0">—</h3>
+                    <p class="text-muted small mb-1">Ingresos del mes</p>
+                    <h4 class="fw-bold text-success mb-0"
+                        th:text="${#numbers.formatDecimal(totalIngresos, 1, 2)} + ' €'"></h4>
                 </div>
             </div>
         </div>
-        <div class="col-12 col-md-4">
+
+        <div class="col-6 col-md-3">
             <div class="card stat-card shadow-sm h-100">
                 <div class="card-body">
-                    <p class="text-muted small mb-1">Mayor gasto</p>
-                    <h3 class="fw-bold text-dark mb-0">—</h3>
+                    <p class="text-muted small mb-1">Gastos del mes</p>
+                    <h4 class="fw-bold text-danger mb-0"
+                        th:text="${#numbers.formatDecimal(totalGastos, 1, 2)} + ' €'"></h4>
                 </div>
             </div>
         </div>
-        <div class="col-12 col-md-4">
+
+        <div class="col-6 col-md-3">
             <div class="card stat-card shadow-sm h-100">
                 <div class="card-body">
-                    <p class="text-muted small mb-1">Nº de gastos</p>
-                    <h3 class="fw-bold text-dark mb-0">—</h3>
+                    <p class="text-muted small mb-1">Balance</p>
+                    <h4 class="fw-bold mb-0"
+                        th:classappend="${balance >= 0} ? 'balance-positivo' : 'balance-negativo'"
+                        th:text="${#numbers.formatDecimal(balance, 1, 2)} + ' €'"></h4>
                 </div>
             </div>
         </div>
+
+        <div class="col-6 col-md-3">
+            <div class="card stat-card shadow-sm h-100">
+                <div class="card-body">
+                    <p class="text-muted small mb-1">Nº gastos</p>
+                    <h4 class="fw-bold text-dark mb-0" th:text="${numGastos}"></h4>
+                </div>
+            </div>
+        </div>
+
     </div>
 
-    <!-- Aviso de construcción -->
-    <div class="card border-0 shadow-sm">
-        <div class="card-body text-center py-5">
-            <div class="fs-1 mb-3">🚧</div>
-            <h5 class="fw-semibold mb-2">Dashboard en construcción</h5>
-            <p class="text-muted mb-4">Aquí aparecerán tus estadísticas y gráficas de gastos.</p>
-            <a th:href="@{/gastos/nuevo}" class="btn btn-dark me-2">+ Añadir gasto</a>
-            <a th:href="@{/gastos}" class="btn btn-outline-secondary">Ver mis gastos</a>
+    <!-- Gráfica + Últimos gastos -->
+    <div class="row g-3">
+
+        <!-- Gráfica de gastos por categoría (Chart.js) -->
+        <div class="col-12 col-lg-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-3">Gastos por categoría</h6>
+                    <div th:if="${chartLabels.isEmpty()}" class="text-center text-muted py-4">
+                        <p class="mb-0">Sin gastos este mes</p>
+                    </div>
+                    <div th:if="${!chartLabels.isEmpty()}">
+                        <canvas id="graficaGastos" style="max-height: 260px;"></canvas>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- Últimos 5 gastos -->
+        <div class="col-12 col-lg-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-semibold mb-0">Últimos gastos</h6>
+                        <a th:href="@{/gastos}" class="text-muted small text-decoration-none">Ver todos →</a>
+                    </div>
+
+                    <div th:if="${ultimosGastos.isEmpty()}" class="text-center text-muted py-4">
+                        <p class="mb-2">Sin gastos registrados</p>
+                        <a th:href="@{/gastos/nuevo}" class="btn btn-sm btn-dark">+ Añadir gasto</a>
+                    </div>
+
+                    <div th:if="${!ultimosGastos.isEmpty()}">
+                        <div th:each="gasto : ${ultimosGastos}"
+                             class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                            <div>
+                                <p class="mb-0 fw-medium small" th:text="${gasto.titulo}"></p>
+                                <p class="mb-0 text-muted" style="font-size: 0.75rem;"
+                                   th:text="${gasto.categoria.nombre} + ' · ' + ${#temporals.format(gasto.fecha, 'dd/MM/yyyy')}"></p>
+                            </div>
+                            <span class="fw-bold small text-danger"
+                                  th:text="${#numbers.formatDecimal(gasto.importe, 1, 2)} + ' €'"></span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Accesos rápidos -->
+    <div class="d-flex gap-2 mt-3">
+        <a th:href="@{/gastos/nuevo}" class="btn btn-dark btn-sm">+ Nuevo gasto</a>
+        <a th:href="@{/ingresos/nuevo}" class="btn btn-success btn-sm">+ Nuevo ingreso</a>
     </div>
 
 </div>
+
+<!-- Chart.js desde CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script th:inline="javascript">
+    // Datos inyectados desde el controlador via Thymeleaf inline
+    const labels = /*[[${chartLabels}]]*/ [];
+    const datos  = /*[[${chartData}]]*/ [];
+
+    // Solo renderizamos la gráfica si hay datos
+    if (labels.length > 0) {
+        const ctx = document.getElementById('graficaGastos').getContext('2d');
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: datos,
+                    backgroundColor: [
+                        '#343a40', '#6c757d', '#adb5bd',
+                        '#495057', '#868e96', '#ced4da'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { font: { size: 12 }, padding: 12 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            // Muestra el importe con € en el tooltip al pasar el ratón
+                            label: function(context) {
+                                return ' ' + context.label + ': ' + context.parsed.toFixed(2) + ' €';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
