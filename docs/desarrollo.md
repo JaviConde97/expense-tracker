@@ -15,6 +15,7 @@ Decisiones de arquitectura, orden de implementación y notas del proceso de desa
 | thymeleaf-extras-springsecurity6 | (incluido en Boot) | Integración Security + Thymeleaf |
 | Bootstrap | 5 | Estilos CSS |
 | JavaScript | ES6 | Dropdown dependiente categoría/subcategoría |
+| Chart.js | 4.4 | Gráfica de donut en el dashboard |
 | Spring Data JPA | (incluido en Boot) | Acceso a datos |
 | H2 | (incluido en Boot) | Base de datos en memoria (dev) |
 | MySQL | 8+ | Base de datos (prod) |
@@ -224,4 +225,79 @@ En modo edición, también se preselecciona la subcategoría que ya tenía el ga
 
 ---
 
-*Proyecto en desarrollo.*
+### Fase 4 — Dashboard con ingresos, estadísticas y gráfica Chart.js
+
+**Rama:** `feature/dashboard`
+
+**Archivos creados:**
+
+| Archivo | Descripción |
+|---|---|
+| `entity/TipoIngreso.java` | Enum con 8 tipos de ingreso |
+| `entity/Ingreso.java` | Entidad JPA con relación `@ManyToOne` al usuario |
+| `repository/IngresoRepository.java` | `findByUsuarioOrderByFechaDesc`, `findByIdAndUsuario` |
+| `dto/IngresoDto.java` | DTO del formulario con validaciones |
+| `service/IngresoService.java` | CRUD completo de ingresos |
+| `controller/IngresoController.java` | Listar, crear, editar, eliminar ingresos |
+| `templates/ingresos/lista.html` | Tabla de ingresos con badges verdes |
+| `templates/ingresos/form.html` | Formulario único para crear y editar |
+
+**Archivos modificados:**
+
+| Archivo | Cambios |
+|---|---|
+| `controller/DashboardController.java` | Calcula estadísticas del mes y las pasa al modelo |
+| `templates/dashboard.html` | Dashboard completo con tarjetas, gráfica Chart.js y últimos gastos |
+| `templates/fragments/navbar.html` | Añadido enlace a Ingresos |
+
+**Decisiones de diseño:**
+
+**Las estadísticas se calculan en Java, no en SQL.** En vez de escribir queries con `SUM`, `GROUP BY` y `WHERE fecha BETWEEN`, los cálculos se hacen en el servicio/controlador usando Java Streams sobre los datos ya cargados. Para el volumen de datos de un usuario personal esto es más que suficiente y el código queda más legible. Si la app escalara a miles de usuarios, sería preferible delegar los cálculos a la base de datos.
+
+```java
+// Filtrar gastos del mes actual
+List<Gasto> gastosDelMes = gastoService.obtenerGastos(usuario).stream()
+    .filter(g -> g.getFecha().getMonthValue() == mesActual
+              && g.getFecha().getYear() == anioActual)
+    .collect(Collectors.toList());
+
+// Sumar importes con reduce
+BigDecimal totalGastos = gastosDelMes.stream()
+    .map(Gasto::getImporte)
+    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+// Agrupar por categoría con Collectors.groupingBy
+Map<CategoriaGasto, BigDecimal> gastosPorCategoria = gastosDelMes.stream()
+    .collect(Collectors.groupingBy(
+        Gasto::getCategoria,
+        Collectors.reducing(BigDecimal.ZERO, Gasto::getImporte, BigDecimal::add)
+    ));
+```
+
+**Balance con color condicional en Thymeleaf.** La tarjeta de balance muestra el número en verde o rojo según su valor. Thymeleaf permite aplicar clases CSS de forma condicional:
+
+```html
+<h4 th:classappend="${balance >= 0} ? 'balance-positivo' : 'balance-negativo'"
+    th:text="${#numbers.formatDecimal(balance, 1, 2)} + ' €'"></h4>
+```
+
+**Gráfica de donut con Chart.js.** Chart.js es una librería JavaScript que genera gráficas en un elemento `<canvas>`. Se carga desde CDN. Los datos (etiquetas y valores) se pasan desde el controlador como listas y se inyectan en el script con Thymeleaf inline:
+
+```javascript
+const labels = /*[[${chartLabels}]]*/ [];
+const datos  = /*[[${chartData}]]*/ [];
+
+new Chart(ctx, {
+    type: 'doughnut',
+    data: { labels: labels, datasets: [{ data: datos, ... }] },
+    options: { ... }
+});
+```
+
+El tooltip se personaliza con la función `callbacks.label` para mostrar el importe en euros al pasar el ratón sobre cada sector.
+
+**Resultado:** Dashboard completo con 4 tarjetas estadísticas, gráfica de donut interactiva por categoría y listado de los últimos 5 gastos. CRUD de ingresos funcionando con 8 tipos.
+
+---
+
+*Proyecto completo.*

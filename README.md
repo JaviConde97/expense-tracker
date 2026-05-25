@@ -1,13 +1,12 @@
 # Expense Tracker
 
-Aplicación web para gestión de gastos personales.
-Cada usuario registra y visualiza sus propios gastos organizados por categoría y subcategoría.
+Aplicación web para gestión de gastos e ingresos personales con dashboard de estadísticas mensuales.
 
 ---
 
 ## Stack
 
-Java 21 · Spring Boot 3.5 · Spring Security · Thymeleaf · Bootstrap 5 · JavaScript · JPA/Hibernate · H2 (dev) · MySQL (prod) · Maven
+Java 21 · Spring Boot 3.5 · Spring Security · Thymeleaf · Bootstrap 5 · JavaScript · Chart.js · JPA/Hibernate · H2 (dev) · MySQL (prod) · Maven
 
 ---
 
@@ -16,11 +15,13 @@ Java 21 · Spring Boot 3.5 · Spring Security · Thymeleaf · Bootstrap 5 · Jav
 - Registro e inicio de sesión con sesión HTTP ✅
 - CRUD completo de gastos (título, importe, categoría, subcategoría, fecha, descripción) ✅
 - 6 categorías con 30 subcategorías (Vivienda, Transporte, Comida, Cuidado personal, Entretenimiento, Inversiones) ✅
+- CRUD completo de ingresos con 8 tipos (Nómina, Freelance, Inmuebles, Intereses, Dividendos, Venta de activos, Prestaciones, Otros) ✅
+- Dashboard mensual con ingresos, gastos, balance y número de transacciones ✅
+- Gráfica de donut por categoría de gasto con Chart.js ✅
+- Últimos 5 gastos en el dashboard ✅
 - Formulario con dropdown de subcategorías dependiente de la categoría seleccionada ✅
-- Aislamiento de datos: cada usuario solo ve sus propios gastos ✅
+- Aislamiento de datos: cada usuario solo ve sus propios gastos e ingresos ✅
 - Validación de formularios ✅
-- Dashboard con total gastado y desglose por categoría
-- Filtro por mes
 
 ---
 
@@ -29,25 +30,31 @@ Java 21 · Spring Boot 3.5 · Spring Security · Thymeleaf · Bootstrap 5 · Jav
 ```
 src/main/java/com/fjconde/expensetracker/
 ├── config/
-│   ├── AppConfig.java          → PasswordEncoder (separado para evitar ciclo)
-│   └── SecurityConfig.java     → Spring Security con sesión HTTP
+│   ├── AppConfig.java              → PasswordEncoder (separado para evitar ciclo)
+│   └── SecurityConfig.java         → Spring Security con sesión HTTP
 ├── controller/
-│   ├── AuthController.java     → login y registro
-│   ├── DashboardController.java
-│   └── GastoController.java    → CRUD de gastos
+│   ├── AuthController.java         → login y registro
+│   ├── DashboardController.java    → estadísticas del mes
+│   ├── GastoController.java        → CRUD de gastos
+│   └── IngresoController.java      → CRUD de ingresos
 ├── dto/
 │   ├── GastoDto.java
+│   ├── IngresoDto.java
 │   └── RegistroDto.java
 ├── entity/
-│   ├── CategoriaGasto.java     → enum con 6 categorías
+│   ├── CategoriaGasto.java         → enum con 6 categorías
 │   ├── Gasto.java
-│   ├── SubcategoriaGasto.java  → enum con 30 subcategorías
+│   ├── Ingreso.java
+│   ├── SubcategoriaGasto.java      → enum con 30 subcategorías
+│   ├── TipoIngreso.java            → enum con 8 tipos de ingreso
 │   └── Usuario.java
 ├── repository/
 │   ├── GastoRepository.java
+│   ├── IngresoRepository.java
 │   └── UsuarioRepository.java
 └── service/
     ├── GastoService.java
+    ├── IngresoService.java
     └── UsuarioService.java
 
 src/main/resources/
@@ -58,12 +65,15 @@ src/main/resources/
 │   ├── fragments/
 │   │   └── navbar.html
 │   ├── gastos/
-│   │   ├── form.html           → crear y editar (mismo formulario)
+│   │   ├── form.html               → crear y editar (mismo formulario)
+│   │   └── lista.html
+│   ├── ingresos/
+│   │   ├── form.html
 │   │   └── lista.html
 │   └── dashboard.html
 ├── application.properties
-├── application-dev.properties  → H2
-└── application-prod.properties → MySQL
+├── application-dev.properties      → H2
+└── application-prod.properties     → MySQL
 ```
 
 ---
@@ -80,14 +90,33 @@ Ir a `http://localhost:8080/auth/registro` e introducir nombre, email y contrase
 
 Usar el email y contraseña del registro en `http://localhost:8080/auth/login`.
 
-### 3. Gestionar gastos
+### 3. Registrar ingresos
 
-Desde "Mis gastos" puedes crear, editar y eliminar gastos. Al crear un gasto:
+Desde "Ingresos" en la navbar puedes crear, editar y eliminar ingresos:
+
+- Selecciona el **tipo** de ingreso: Nómina, Freelance, Inmuebles, Intereses, Dividendos, Venta de activos, Prestaciones u Otros
+- Introduce el **importe** en euros
+- Elige la **fecha** del ingreso
+- La **descripción** es opcional
+
+### 4. Gestionar gastos
+
+Desde "Gastos" puedes crear, editar y eliminar gastos:
 
 - Selecciona una **categoría** — el segundo desplegable se actualiza automáticamente con sus subcategorías
 - Introduce el **importe** en euros
 - Elige la **fecha** del gasto
 - La **descripción** es opcional
+
+### 5. Consultar el dashboard
+
+El dashboard muestra el resumen del mes actual:
+
+- **Ingresos del mes** — suma de todos los ingresos registrados en el mes
+- **Gastos del mes** — suma de todos los gastos del mes
+- **Balance** — ingresos menos gastos (verde si positivo, rojo si negativo)
+- **Gráfica** — distribución de gastos por categoría
+- **Últimos gastos** — los 5 más recientes
 
 ---
 
