@@ -14,6 +14,7 @@ Decisiones de arquitectura, orden de implementación y notas del proceso de desa
 | Thymeleaf | (incluido en Boot) | Motor de plantillas HTML |
 | thymeleaf-extras-springsecurity6 | (incluido en Boot) | Integración Security + Thymeleaf |
 | Bootstrap | 5 | Estilos CSS |
+| JavaScript | ES6 | Dropdown dependiente categoría/subcategoría |
 | Spring Data JPA | (incluido en Boot) | Acceso a datos |
 | H2 | (incluido en Boot) | Base de datos en memoria (dev) |
 | MySQL | 8+ | Base de datos (prod) |
@@ -158,6 +159,68 @@ SecurityConfig → depende de UsuarioService  ✅
 Causa: usar `<ul class="navbar-nav"><li class="nav-item">` con clases de Bootstrap que aplican `flex-direction: column` por defecto en ciertos contextos.
 
 Solución: sustituir la estructura de lista por un `<div class="d-flex align-items-center gap-3 ms-auto">` con los enlaces directamente dentro. Más simple y garantiza que todo quede en una línea horizontal.
+
+---
+
+### Fase 3 — CRUD de gastos con categorías y subcategorías
+
+**Rama:** `feature/gastos`
+
+**Archivos creados:**
+
+| Archivo | Descripción |
+|---|---|
+| `entity/CategoriaGasto.java` | Enum con 6 categorías principales y su nombre para mostrar |
+| `entity/SubcategoriaGasto.java` | Enum con 30 subcategorías, cada una referenciando su categoría padre |
+| `entity/Gasto.java` | Entidad JPA con relación `@ManyToOne` al usuario propietario |
+| `repository/GastoRepository.java` | `findByUsuarioOrderByFechaDesc`, `findByIdAndUsuario` |
+| `dto/GastoDto.java` | DTO del formulario con validaciones `@NotBlank`, `@NotNull`, `@DecimalMin` |
+| `service/GastoService.java` | CRUD completo verificando propietario en cada operación |
+| `controller/GastoController.java` | Listar, crear, editar, eliminar con `@AuthenticationPrincipal` |
+| `templates/gastos/lista.html` | Tabla de gastos con badges de categoría y confirmación de borrado |
+| `templates/gastos/form.html` | Formulario único para crear y editar con dropdown dependiente en JS |
+
+**Decisiones de diseño:**
+
+**Un formulario para crear y editar.** En vez de tener `nuevo.html` y `editar.html` por separado, el mismo `form.html` sirve para los dos casos. El controlador pasa `gastoId` al modelo cuando es una edición (null cuando es nuevo), y Thymeleaf ajusta el título, la action del formulario y el texto del botón con expresiones condicionales: `th:text="${gastoId} ? 'Guardar cambios' : 'Añadir gasto'"`.
+
+**`findByIdAndUsuario` como medida de seguridad.** Si el repositorio solo tuviera `findById`, un usuario podría editar o eliminar el gasto de otro usuario cambiando el ID en la URL (ej: `/gastos/5/editar`). Con `findByIdAndUsuario` Spring Data genera una query con `WHERE id = ? AND usuario_id = ?`, por lo que si el gasto no pertenece al usuario autenticado devuelve `Optional.empty()` y el servicio lanza una excepción.
+
+**`@AuthenticationPrincipal` en el controlador.** En vez de obtener el email de `SecurityContextHolder` y luego buscar el usuario en base de datos, `@AuthenticationPrincipal Usuario usuario` inyecta directamente el objeto `Usuario` que ya cargó Spring Security al hacer login. Evita una consulta extra por petición.
+
+**Los formularios HTML no soportan DELETE ni PUT.** Los navegadores solo envían `GET` y `POST` en formularios. Por eso el endpoint de borrado es `POST /gastos/{id}/eliminar` en vez de `DELETE /gastos/{id}`. Es el enfoque estándar en aplicaciones Thymeleaf.
+
+**BigDecimal para importes monetarios.** Los tipos `float` y `double` tienen problemas de precisión en base 2 (ej: `0.1 + 0.2 = 0.30000000000000004`). Para dinero siempre se usa `BigDecimal`, que trabaja en base 10 y garantiza exactitud en las operaciones aritméticas.
+
+**Dropdown dependiente con JavaScript:**
+
+El formulario tiene dos selects: categoría y subcategoría. Cuando el usuario cambia la categoría, el segundo select debe actualizarse mostrando solo las subcategorías de esa categoría.
+
+Para pasar los datos de Java a JavaScript se usa la sintaxis de Thymeleaf inline:
+
+```html
+<script th:inline="javascript">
+    const subcategoriasPorCategoria = /*[[${subcategoriasPorCategoria}]]*/ {};
+</script>
+```
+
+El controlador construye un `Map<String, List<Map<String, String>>>` con la estructura `{ "VIVIENDA": [{value: "HIPOTECA_ALQUILER", label: "Hipoteca o alquiler"}, ...], ... }`. Thymeleaf serializa ese mapa a JSON automáticamente al renderizar la plantilla. El resultado en el HTML es:
+
+```javascript
+const subcategoriasPorCategoria = {"VIVIENDA":[{"value":"HIPOTECA_ALQUILER","label":"Hipoteca o alquiler"}, ...],...};
+```
+
+JavaScript escucha el evento `change` del primer select y reconstruye las opciones del segundo:
+
+```javascript
+selectCategoria.addEventListener('change', function () {
+    actualizarSubcategorias(this.value, null);
+});
+```
+
+En modo edición, también se preselecciona la subcategoría que ya tenía el gasto cargando el valor guardado desde Thymeleaf (`subcategoriaSeleccionada`) y marcando `option.selected = true` cuando coincide.
+
+**Resultado:** CRUD completo funcionando. El usuario puede añadir gastos con categoría y subcategoría, editarlos y eliminarlos. La tabla muestra los gastos ordenados por fecha con badge de categoría e importe formateado.
 
 ---
 

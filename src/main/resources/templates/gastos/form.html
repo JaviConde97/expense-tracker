@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${gastoId} ? 'Editar gasto' : 'Nuevo gasto'">Gasto — Expense Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .form-card { border: none; border-radius: 16px; }
+    </style>
+</head>
+<body>
+
+<div th:replace="~{fragments/navbar :: navbar}"></div>
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-7 col-lg-6">
+
+            <!-- Título dinámico según si es nuevo o edición -->
+            <h2 class="fw-bold mb-4"
+                th:text="${gastoId} ? 'Editar gasto' : 'Nuevo gasto'"></h2>
+
+            <div class="card form-card shadow-sm">
+                <div class="card-body p-4">
+
+                    <!--
+                      La action del formulario cambia según si estamos creando o editando.
+                      th:action evalúa la expresión condicionalmente.
+                    -->
+                    <form th:action="${gastoId} ? @{/gastos/{id}/editar(id=${gastoId})} : @{/gastos/nuevo}"
+                          th:object="${gastoDto}"
+                          method="post">
+
+                        <!-- Título -->
+                        <div class="mb-3">
+                            <label for="titulo" class="form-label small fw-medium">Título</label>
+                            <input type="text" class="form-control" id="titulo"
+                                   th:field="*{titulo}" placeholder="Ej: Supermercado Mercadona">
+                            <div class="text-danger small mt-1" th:errors="*{titulo}"></div>
+                        </div>
+
+                        <!-- Importe -->
+                        <div class="mb-3">
+                            <label for="importe" class="form-label small fw-medium">Importe (€)</label>
+                            <input type="number" class="form-control" id="importe"
+                                   th:field="*{importe}" placeholder="0.00"
+                                   step="0.01" min="0.01">
+                            <div class="text-danger small mt-1" th:errors="*{importe}"></div>
+                        </div>
+
+                        <!-- Fecha -->
+                        <div class="mb-3">
+                            <label for="fecha" class="form-label small fw-medium">Fecha</label>
+                            <input type="date" class="form-control" id="fecha"
+                                   th:field="*{fecha}">
+                            <div class="text-danger small mt-1" th:errors="*{fecha}"></div>
+                        </div>
+
+                        <!-- Categoría -->
+                        <div class="mb-3">
+                            <label for="categoria" class="form-label small fw-medium">Categoría</label>
+                            <select class="form-select" id="categoria" th:field="*{categoria}">
+                                <option value="">-- Selecciona una categoría --</option>
+                                <option th:each="cat : ${categorias}"
+                                        th:value="${cat.name()}"
+                                        th:text="${cat.nombre}">
+                                </option>
+                            </select>
+                            <div class="text-danger small mt-1" th:errors="*{categoria}"></div>
+                        </div>
+
+                        <!-- Subcategoría (se filtra por JS según la categoría elegida) -->
+                        <div class="mb-3">
+                            <label for="subcategoria" class="form-label small fw-medium">Subcategoría</label>
+                            <select class="form-select" id="subcategoria" th:field="*{subcategoria}">
+                                <option value="">-- Selecciona primero una categoría --</option>
+                            </select>
+                            <div class="text-danger small mt-1" th:errors="*{subcategoria}"></div>
+                        </div>
+
+                        <!-- Descripción (opcional) -->
+                        <div class="mb-4">
+                            <label for="descripcion" class="form-label small fw-medium">
+                                Descripción <span class="text-muted fw-normal">(opcional)</span>
+                            </label>
+                            <textarea class="form-control" id="descripcion"
+                                      th:field="*{descripcion}" rows="2"
+                                      placeholder="Notas adicionales..."></textarea>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-dark flex-grow-1">
+                                <span th:text="${gastoId} ? 'Guardar cambios' : 'Añadir gasto'"></span>
+                            </button>
+                            <a th:href="@{/gastos}" class="btn btn-outline-secondary">Cancelar</a>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!--
+  Mapa de subcategorías inyectado desde el controlador via Thymeleaf inline JavaScript.
+  /*[[...]]*/  es la sintaxis de Thymeleaf para incrustar valores en scripts.
+  Spring serializa el Map<String, List<Map<String,String>>> automáticamente a JSON.
+-->
+<script th:inline="javascript">
+    const subcategoriasPorCategoria = /*[[${subcategoriasPorCategoria}]]*/ {};
+
+    // Valor seleccionado actualmente (para cuando se edita un gasto existente)
+    const subcategoriaSeleccionada = /*[[${gastoDto.subcategoria}]]*/ null;
+
+    const selectCategoria    = document.getElementById('categoria');
+    const selectSubcategoria = document.getElementById('subcategoria');
+
+    /**
+     * Actualiza las opciones del select de subcategoría
+     * según la categoría seleccionada en ese momento.
+     */
+    function actualizarSubcategorias(categoriaSeleccionada, subcategoriaPrevia) {
+        // Limpiamos las opciones actuales
+        selectSubcategoria.innerHTML = '<option value="">-- Selecciona una subcategoría --</option>';
+
+        if (!categoriaSeleccionada) return;
+
+        const subcategorias = subcategoriasPorCategoria[categoriaSeleccionada] || [];
+
+        subcategorias.forEach(sub => {
+            const option = document.createElement('option');
+            option.value = sub.value;
+            option.textContent = sub.label;
+            // Si estamos editando, marcamos la subcategoría que ya tenía el gasto
+            if (sub.value === subcategoriaPrevia) {
+                option.selected = true;
+            }
+            selectSubcategoria.appendChild(option);
+        });
+    }
+
+    // Cuando el usuario cambia la categoría, actualizamos subcategorías sin preselección
+    selectCategoria.addEventListener('change', function () {
+        actualizarSubcategorias(this.value, null);
+    });
+
+    // Al cargar la página: si ya hay categoría seleccionada (modo edición),
+    // cargamos sus subcategorías y marcamos la que corresponde
+    const categoriaInicial = selectCategoria.value;
+    if (categoriaInicial) {
+        actualizarSubcategorias(categoriaInicial, subcategoriaSeleccionada);
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
