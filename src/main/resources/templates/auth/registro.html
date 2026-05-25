@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro — Expense Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .auth-card {
+            border: none;
+            border-radius: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 100vh;">
+    <div class="col-12 col-sm-8 col-md-5 col-lg-4">
+
+        <div class="text-center mb-4">
+            <span class="fs-2">💸</span>
+            <h4 class="fw-bold mt-1 mb-0">Expense Tracker</h4>
+            <p class="text-muted small">Controla tus gastos personales</p>
+        </div>
+
+        <div class="card auth-card shadow-sm">
+            <div class="card-body p-4">
+
+                <h6 class="fw-semibold mb-3">Crea tu cuenta</h6>
+
+                <div th:if="${errorMsg}" class="alert alert-danger py-2 small" th:text="${errorMsg}"></div>
+
+                <form th:action="@{/auth/registro}" th:object="${registroDto}" method="post">
+
+                    <div class="mb-3">
+                        <label for="nombre" class="form-label small fw-medium">Nombre</label>
+                        <input type="text" class="form-control" id="nombre"
+                               th:field="*{nombre}" placeholder="Tu nombre" autofocus>
+                        <div class="text-danger small mt-1" th:errors="*{nombre}"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="email" class="form-label small fw-medium">Email</label>
+                        <input type="email" class="form-control" id="email"
+                               th:field="*{email}" placeholder="tu@email.com">
+                        <div class="text-danger small mt-1" th:errors="*{email}"></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="password" class="form-label small fw-medium">Contraseña</label>
+                        <input type="password" class="form-control" id="password"
+                               th:field="*{password}" placeholder="Mínimo 8 caracteres">
+                        <div class="text-danger small mt-1" th:errors="*{password}"></div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-dark">Crear cuenta</button>
+                    </div>
+
+                </form>
+
+            </div>
+        </div>
+
+        <p class="text-center text-muted small mt-3">
+            ¿Ya tienes cuenta?
+            <a th:href="@{/auth/login}" class="text-dark fw-medium">Inicia sesión</a>
+        </p>
+
+    </div>
+</div>
+
+</body>
+</html>

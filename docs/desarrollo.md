@@ -91,4 +91,74 @@ Esta dependencia no aparece en Spring Initializr pero es imprescindible para mos
 
 ---
 
+### Fase 2 — Autenticación con sesión HTTP
+
+**Rama:** `feature/auth`
+
+**Archivos creados:**
+
+| Archivo | Descripción |
+|---|---|
+| `entity/Usuario.java` | Entidad JPA que implementa `UserDetails` directamente |
+| `repository/UsuarioRepository.java` | `findByEmail`, `existsByEmail` |
+| `dto/RegistroDto.java` | DTO del formulario de registro con validaciones |
+| `service/UsuarioService.java` | Implementa `UserDetailsService`, gestiona el registro |
+| `config/SecurityConfig.java` | Configuración de Spring Security con sesión HTTP |
+| `controller/AuthController.java` | GET/POST de login y registro |
+| `controller/DashboardController.java` | Placeholder del dashboard tras el login |
+| `templates/auth/login.html` | Formulario de login con Bootstrap 5 |
+| `templates/auth/registro.html` | Formulario de registro con validaciones inline |
+| `templates/fragments/navbar.html` | Navbar reutilizable con `sec:authorize` |
+| `templates/dashboard.html` | Dashboard placeholder |
+
+**Decisiones de diseño:**
+
+**Usuario implementa UserDetails directamente.** En vez de tener una clase `UserDetailsWrapper` separada, la entidad `Usuario` implementa la interfaz `UserDetails`. Es el enfoque más directo para proyectos sin roles complejos — evita una clase extra y Spring Security puede usarla sin adaptadores.
+
+**El login lo procesa Spring Security, no un controlador.** En el `AuthController` solo existe el `GET /auth/login` para mostrar el formulario. El `POST /auth/login` lo intercepta Spring Security automáticamente según lo configurado en `SecurityConfig` con `.loginProcessingUrl("/auth/login")`. Intentar crear un `@PostMapping("/auth/login")` causaría conflicto.
+
+**CSRF activo (a diferencia del task-manager-api).** En la API REST desactivamos CSRF porque usábamos JWT. Aquí lo mantenemos activo porque es una app web con formularios y sesión — la protección CSRF es necesaria. Solo se desactiva para `/h2-console/**` que no usa formularios propios.
+
+**Bootstrap 5 via CDN.** Los estilos se cargan desde `cdn.jsdelivr.net` directamente en cada plantilla. No hay ficheros CSS propios por ahora — se añadirán en fases posteriores si se necesita personalización.
+
+**Fragmentos Thymeleaf para la navbar.** La navbar se define una sola vez en `fragments/navbar.html` y se incluye en cada página con `th:replace="~{fragments/navbar :: navbar}"`. Así cualquier cambio en la navbar se aplica a toda la app automáticamente.
+
+**Resultado:** Registro, login y logout funcionando. Tras el login el usuario llega al dashboard. Los mensajes de error (credenciales incorrectas, email ya en uso) se muestran en el propio formulario sin recargar desde cero.
+
+**Cómo probar la autenticación en desarrollo:**
+
+1. Arrancar la app con `./mvnw spring-boot:run` (perfil `dev` activo por defecto)
+2. Ir a `http://localhost:8080` — redirige automáticamente a `/auth/login`
+3. Hacer clic en "Regístrate aquí" para crear una cuenta nueva
+4. La base de datos H2 es en memoria: se vacía cada vez que se reinicia la app, así que hay que registrarse de nuevo en cada arranque
+5. Tras registrarse redirige a login con mensaje de confirmación
+6. Iniciar sesión con el email y contraseña registrados → accede al dashboard
+
+**Errores encontrados y soluciones:**
+
+**Error: dependencia circular al arrancar**
+
+```
+The dependencies of some of the beans in the application context form a cycle:
+securityConfig → usuarioService → securityConfig
+```
+
+Causa: `SecurityConfig` inyectaba `UsuarioService` (para autenticación) y a la vez definía el bean `PasswordEncoder`. `UsuarioService` a su vez necesitaba ese `PasswordEncoder`. Spring no puede crear ninguno de los dos porque cada uno espera al otro.
+
+Solución: extraer el `PasswordEncoder` a una clase de configuración separada (`AppConfig.java`). Al estar en su propia clase sin dependencias, Spring lo crea primero y el ciclo desaparece:
+
+```
+AppConfig      → crea PasswordEncoder (sin dependencias)
+UsuarioService → depende de PasswordEncoder ✅
+SecurityConfig → depende de UsuarioService  ✅
+```
+
+**Error: items de la navbar apilados verticalmente**
+
+Causa: usar `<ul class="navbar-nav"><li class="nav-item">` con clases de Bootstrap que aplican `flex-direction: column` por defecto en ciertos contextos.
+
+Solución: sustituir la estructura de lista por un `<div class="d-flex align-items-center gap-3 ms-auto">` con los enlaces directamente dentro. Más simple y garantiza que todo quede en una línea horizontal.
+
+---
+
 *Proyecto en desarrollo.*

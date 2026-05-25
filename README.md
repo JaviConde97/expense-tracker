@@ -13,7 +13,7 @@ Java 21 · Spring Boot 3.5 · Spring Security · Thymeleaf · Bootstrap 5 · JPA
 
 ## Funcionalidades
 
-- Registro e inicio de sesión con sesión HTTP
+- Registro e inicio de sesión con sesión HTTP ✅
 - CRUD completo de gastos (título, importe, categoría, fecha)
 - Dashboard con total gastado y desglose por categoría
 - Filtro por mes
