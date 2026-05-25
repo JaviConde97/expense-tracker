@@ -25,7 +25,7 @@ public class GastoDto {
     @DecimalMin(value = "0.01", message = "El importe debe ser mayor que 0")
     private BigDecimal importe;
 
-    @NotNull(message = "La categoría es obligatoria")
+    // La categoría se deriva de la subcategoría seleccionada, no se envía desde el formulario
     private CategoriaGasto categoria;
 
     @NotNull(message = "La subcategoría es obligatoria")

@@ -6,7 +6,7 @@ Aplicación web para gestión de gastos e ingresos personales con dashboard de e
 
 ## Stack
 
-Java 21 · Spring Boot 3.5 · Spring Security · Thymeleaf · Bootstrap 5 · JavaScript · Chart.js · JPA/Hibernate · H2 (dev) · MySQL (prod) · Maven
+Java 21 · Spring Boot 3.5 · Spring Security · Thymeleaf · Bootstrap 5 · JavaScript · Chart.js · Tom Select · JPA/Hibernate · H2 (dev) · MySQL (prod) · Maven
 
 ---
 
@@ -17,9 +17,13 @@ Java 21 · Spring Boot 3.5 · Spring Security · Thymeleaf · Bootstrap 5 · Jav
 - 6 categorías con 30 subcategorías (Vivienda, Transporte, Comida, Cuidado personal, Entretenimiento, Inversiones) ✅
 - CRUD completo de ingresos con 8 tipos (Nómina, Freelance, Inmuebles, Intereses, Dividendos, Venta de activos, Prestaciones, Otros) ✅
 - Dashboard mensual con ingresos, gastos, balance y número de transacciones ✅
-- Gráfica de donut por categoría de gasto con Chart.js ✅
-- Últimos 5 gastos en el dashboard ✅
-- Formulario con dropdown de subcategorías dependiente de la categoría seleccionada ✅
+- Navegación entre meses en el dashboard con botones anterior/siguiente y botón "Hoy" ✅
+- Gráfica de donut por categoría de gasto del mes seleccionado ✅
+- Gráfica de barras anual comparando gastos e ingresos mes a mes ✅
+- Gastos del mes seleccionado en el dashboard ✅
+- Lista de gastos con columna `Categoría › Subcategoría` y total al pie de tabla ✅
+- Lista de ingresos con total al pie de tabla ✅
+- Formulario de gasto con selector buscable agrupado por categoría (Tom Select) ✅
 - Aislamiento de datos: cada usuario solo ve sus propios gastos e ingresos ✅
 - Validación de formularios ✅
 
@@ -103,20 +107,25 @@ Desde "Ingresos" en la navbar puedes crear, editar y eliminar ingresos:
 
 Desde "Gastos" puedes crear, editar y eliminar gastos:
 
-- Selecciona una **categoría** — el segundo desplegable se actualiza automáticamente con sus subcategorías
+- En el campo **¿En qué gastaste?** escribe para buscar directamente o despliega para ver todas las opciones agrupadas por categoría (Vivienda, Transporte, Comida...)
 - Introduce el **importe** en euros
 - Elige la **fecha** del gasto
 - La **descripción** es opcional
 
+La lista de gastos muestra la columna categoría en formato `Vivienda › Hipoteca o alquiler` y el total acumulado al pie de la tabla.
+
 ### 5. Consultar el dashboard
 
-El dashboard muestra el resumen del mes actual:
+El dashboard muestra el resumen del mes seleccionado:
 
-- **Ingresos del mes** — suma de todos los ingresos registrados en el mes
+- **Ingresos del mes** — suma de todos los ingresos del mes
 - **Gastos del mes** — suma de todos los gastos del mes
 - **Balance** — ingresos menos gastos (verde si positivo, rojo si negativo)
-- **Gráfica** — distribución de gastos por categoría
-- **Últimos gastos** — los 5 más recientes
+- **Gráfica de donut** — distribución de gastos por categoría del mes
+- **Gastos del mes** — los 5 más recientes del mes seleccionado
+- **Gráfica de barras anual** — comparativa de gastos e ingresos mes a mes del año actual
+
+Usa los botones **←** y **→** para navegar entre meses o **Hoy** para volver al mes actual.
 
 ---
 

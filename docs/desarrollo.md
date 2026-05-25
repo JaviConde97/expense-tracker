@@ -15,7 +15,8 @@ Decisiones de arquitectura, orden de implementación y notas del proceso de desa
 | thymeleaf-extras-springsecurity6 | (incluido en Boot) | Integración Security + Thymeleaf |
 | Bootstrap | 5 | Estilos CSS |
 | JavaScript | ES6 | Dropdown dependiente categoría/subcategoría |
-| Chart.js | 4.4 | Gráfica de donut en el dashboard |
+| Chart.js | 4.4 | Gráfica de donut y barras en el dashboard |
+| Tom Select | 2.3 | Select buscable con optgroups en el formulario de gastos |
 | Spring Data JPA | (incluido en Boot) | Acceso a datos |
 | H2 | (incluido en Boot) | Base de datos en memoria (dev) |
 | MySQL | 8+ | Base de datos (prod) |
@@ -300,4 +301,41 @@ El tooltip se personaliza con la función `callbacks.label` para mostrar el impo
 
 ---
 
-*Proyecto completo.*
+---
+
+### Fase 5 — Mejoras de UX
+
+**Rama:** `feature/mejoras-ui`
+
+**Archivos modificados:**
+
+| Archivo | Cambios |
+|---|---|
+| `templates/gastos/lista.html` | Columna categoría+subcategoría unificada, total al pie |
+| `templates/ingresos/lista.html` | Total acumulado al pie de la tabla |
+| `templates/gastos/form.html` | Select buscable con `<optgroup>` usando Tom Select |
+| `dto/GastoDto.java` | Campo `categoria` sin `@NotNull` (se deriva de la subcategoría) |
+| `service/GastoService.java` | `mapearDtoAGasto` deriva `categoria` de `subcategoria.getCategoria()` |
+| `controller/DashboardController.java` | Parámetros `mes`/`anio`, navegación prev/next, datos del gráfico anual |
+| `templates/dashboard.html` | Navegador de mes, título dinámico, gráfico de barras anual |
+
+**Decisiones de diseño:**
+
+**Columna categoría unificada en lista de gastos.** En vez de dos columnas separadas ("Vivienda" y "Hipoteca o alquiler"), se muestra una sola columna con formato `Vivienda › Hipoteca o alquiler`. Más legible y ocupa menos espacio horizontal. El total se calcula con `#aggregates.sum(gastos.![importe])`, la utilidad nativa de Thymeleaf para sumar una colección proyectando un campo.
+
+**Tom Select para el selector de subcategoría.** El flujo anterior obligaba al usuario a saber en qué categoría estaba su gasto antes de poder elegir la subcategoría. Con Tom Select se reemplaza el doble select por un único campo buscable con `<optgroup>` por categoría. El usuario escribe "netflix" o "cafe" y filtra al instante. Se carga desde CDN sin instalar dependencias.
+
+La categoría ya no se envía desde el formulario — la deriva el servicio automáticamente:
+
+```java
+gasto.setSubcategoria(dto.getSubcategoria());
+gasto.setCategoria(dto.getSubcategoria().getCategoria()); // el enum ya tiene su categoría padre
+```
+
+Esto simplifica el formulario y garantiza consistencia: es imposible guardar un gasto con una subcategoría que no pertenece a la categoría almacenada.
+
+**Navegación entre meses en el dashboard.** El endpoint `/dashboard` acepta parámetros opcionales `mes` y `anio`. Si no vienen, usa el mes actual. El controlador calcula `fechaAnterior` y `fechaSiguiente` con `LocalDate.minusMonths/plusMonths`, que gestiona automáticamente los cambios de año. La plantilla tiene botones `←`, `→` y `Hoy` que generan la URL correspondiente.
+
+**Gráfico de barras anual.** Un bucle de 1 a 12 construye tres listas paralelas (`barLabels`, `barGastos`, `barIngresos`) sumando los importes de cada mes del año actual. Se reutiliza el mismo CDN de Chart.js ya cargado en la página. Las dos series (gastos en rojo, ingresos en verde) permiten ver de un vistazo los meses con más gasto o ahorro.
+
+**Resultado:** UX mejorada en el formulario de gastos (buscador), listas más informativas (total acumulado, categoría unificada) y dashboard con navegación temporal y visión anual.

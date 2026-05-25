@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,11 +30,19 @@ public class DashboardController {
     private final IngresoService ingresoService;
 
     @GetMapping("/dashboard")
-    public String dashboard(@AuthenticationPrincipal Usuario usuario, Model model) {
+    public String dashboard(@AuthenticationPrincipal Usuario usuario,
+                            @RequestParam(required = false) Integer mes,
+                            @RequestParam(required = false) Integer anio,
+                            Model model) {
 
         LocalDate hoy = LocalDate.now();
-        int mesActual  = hoy.getMonthValue();
-        int anioActual = hoy.getYear();
+        int mesActual  = (mes  != null) ? mes  : hoy.getMonthValue();
+        int anioActual = (anio != null) ? anio : hoy.getYear();
+
+        // Mes anterior y siguiente para los botones de navegación
+        LocalDate fechaActual = LocalDate.of(anioActual, mesActual, 1);
+        LocalDate fechaAnterior = fechaActual.minusMonths(1);
+        LocalDate fechaSiguiente = fechaActual.plusMonths(1);
 
         // --- Gastos del mes actual ---
         List<Gasto> gastosDelMes = gastoService.obtenerGastos(usuario).stream()
@@ -86,15 +95,43 @@ public class DashboardController {
                 .map(Map.Entry::getValue)
                 .collect(Collectors.toList());
 
-        // --- Últimos 5 gastos (de todos los meses, no solo el actual) ---
-        List<Gasto> ultimosGastos = gastoService.obtenerGastos(usuario).stream()
+        // --- Últimos 5 gastos del mes seleccionado ---
+        List<Gasto> ultimosGastos = gastosDelMes.stream()
                 .limit(5)
                 .collect(Collectors.toList());
 
         // Nombre del mes actual en español para el título del dashboard
         String[] meses = {"Enero","Febrero","Marzo","Abril","Mayo","Junio",
                           "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"};
+        String[] mesesCortos = {"Ene","Feb","Mar","Abr","May","Jun",
+                                "Jul","Ago","Sep","Oct","Nov","Dic"};
         String nombreMes = meses[mesActual - 1];
+
+        // --- Gráfico anual: gastos e ingresos por mes del año actual ---
+        List<Gasto>   todosLosGastos   = gastoService.obtenerGastos(usuario);
+        List<Ingreso> todosLosIngresos = ingresoService.obtenerIngresos(usuario);
+
+        List<String>     barLabels   = new ArrayList<>();
+        List<BigDecimal> barGastos   = new ArrayList<>();
+        List<BigDecimal> barIngresos = new ArrayList<>();
+
+        for (int numMes = 1; numMes <= 12; numMes++) {
+            final int m = numMes;
+
+            BigDecimal gastosMes = todosLosGastos.stream()
+                    .filter(g -> g.getFecha().getYear() == anioActual && g.getFecha().getMonthValue() == m)
+                    .map(Gasto::getImporte)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            BigDecimal ingresosMes = todosLosIngresos.stream()
+                    .filter(i -> i.getFecha().getYear() == anioActual && i.getFecha().getMonthValue() == m)
+                    .map(Ingreso::getImporte)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            barLabels.add(mesesCortos[numMes - 1]);
+            barGastos.add(gastosMes);
+            barIngresos.add(ingresosMes);
+        }
 
         // Pasamos todo al modelo
         model.addAttribute("nombreMes",      nombreMes);
@@ -106,6 +143,15 @@ public class DashboardController {
         model.addAttribute("chartLabels",    chartLabels);
         model.addAttribute("chartData",      chartData);
         model.addAttribute("ultimosGastos",  ultimosGastos);
+        model.addAttribute("barLabels",      barLabels);
+        model.addAttribute("barGastos",      barGastos);
+        model.addAttribute("barIngresos",    barIngresos);
+        model.addAttribute("anioActual",     anioActual);
+        model.addAttribute("mesActual",      mesActual);
+        model.addAttribute("mesAnterior",    fechaAnterior.getMonthValue());
+        model.addAttribute("anioAnterior",   fechaAnterior.getYear());
+        model.addAttribute("mesSiguiente",   fechaSiguiente.getMonthValue());
+        model.addAttribute("anioSiguiente",  fechaSiguiente.getYear());
 
         return "dashboard";
     }

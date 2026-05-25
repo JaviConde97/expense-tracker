@@ -69,8 +69,9 @@ public class GastoService {
     private void mapearDtoAGasto(GastoDto dto, Gasto gasto) {
         gasto.setTitulo(dto.getTitulo());
         gasto.setImporte(dto.getImporte());
-        gasto.setCategoria(dto.getCategoria());
+        // La categoría se deriva automáticamente de la subcategoría (el enum ya la tiene)
         gasto.setSubcategoria(dto.getSubcategoria());
+        gasto.setCategoria(dto.getSubcategoria().getCategoria());
         gasto.setFecha(dto.getFecha());
         gasto.setDescripcion(dto.getDescripcion());
     }
